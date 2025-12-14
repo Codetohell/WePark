@@ -1,0 +1,33 @@
+# Core Flask dependencies
+Flask==3.1.1
+Flask-SQLAlchemy==3.1.1
+Flask-RESTful==0.3.10
+Flask-JWT-Extended==4.7.1
+Flask-Mail==0.10.0
+Flask-Caching==2.3.1
+flask-cors==6.0.1
+
+# Database
+SQLAlchemy==2.0.41
+
+# Authentication & Security
+bcrypt==3.2.2
+PyJWT==2.10.1
+
+# Celery & Background Tasks
+celery==5.5.3
+redis==6.2.0
+
+# Payment Gateway
+razorpay==1.4.2
+
+# Utilities
+python-dotenv==1.1.0
+requests==2.32.4
+python-dateutil==2.9.0.post0
+
+# Email
+blinker==1.9.0
+
+# Timezone
+pytz==2025.2

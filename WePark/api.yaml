@@ -1,0 +1,665 @@
+openapi: 3.0.0
+info:
+  title: WePark API
+  description: RESTful API for WePark - Modern Parking Management System
+  version: 1.0.0
+  contact:
+    name: WePark Team
+    email: support@wepark.local
+
+servers:
+  - url: http://localhost:1437/api
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User and admin authentication endpoints
+  - name: Users
+    description: User management operations
+  - name: Parking Lots
+    description: Parking lot CRUD operations
+  - name: Spots
+    description: Parking spot operations
+  - name: Reservations
+    description: Booking and reservation management
+  - name: Payments
+    description: Payment processing
+  - name: Statistics
+    description: Dashboard statistics
+  - name: Notifications
+    description: User notifications
+  - name: Export
+    description: Data export functionality
+
+paths:
+  /signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+                - address
+                - pincode
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                address:
+                  type: string
+                pincode:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error or user already exists
+
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user or admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_or_mail
+                - password
+              properties:
+                user_or_mail:
+                  type: string
+                  description: Username or email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: access_token_cookie=eyJ0eXAiOiJKV1QiLCJhbGc...
+        '401':
+          description: Invalid credentials
+
+  /user:
+    get:
+      tags:
+        - Users
+      summary: Get all users (Admin only)
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '403':
+          description: Forbidden - Admin access required
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                address:
+                  type: string
+                pincode:
+                  type: string
+      responses:
+        '200':
+          description: User updated successfully
+        '400':
+          description: Validation error
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user account
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User deleted successfully
+        '400':
+          description: Cannot delete user with active bookings
+
+  /lot:
+    get:
+      tags:
+        - Parking Lots
+      summary: Get all parking lots
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+          description: Filter by location name
+        - name: pincode
+          in: query
+          schema:
+            type: string
+          description: Filter by pincode
+        - name: address
+          in: query
+          schema:
+            type: string
+          description: Filter by address
+      responses:
+        '200':
+          description: List of parking lots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lot'
+
+    post:
+      tags:
+        - Parking Lots
+      summary: Create new parking lot (Admin only)
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prime_location
+                - price_per_hour
+                - address
+                - pincode
+                - no_of_spots
+              properties:
+                prime_location:
+                  type: string
+                price_per_hour:
+                  type: number
+                address:
+                  type: string
+                pincode:
+                  type: string
+                no_of_spots:
+                  type: integer
+      responses:
+        '201':
+          description: Parking lot created successfully
+        '400':
+          description: Validation error
+        '403':
+          description: Forbidden - Admin access required
+
+  /lot/{lot_id}:
+    get:
+      tags:
+        - Parking Lots
+      summary: Get specific parking lot
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: lot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Parking lot details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lot'
+        '400':
+          description: Lot not found
+
+    put:
+      tags:
+        - Parking Lots
+      summary: Update parking lot (Admin only)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: lot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prime_location:
+                  type: string
+                price_per_hour:
+                  type: number
+                address:
+                  type: string
+                pincode:
+                  type: string
+      responses:
+        '200':
+          description: Lot updated successfully
+        '404':
+          description: Lot not found
+
+    delete:
+      tags:
+        - Parking Lots
+      summary: Delete parking lot (Admin only)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: lot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lot deleted successfully
+        '400':
+          description: Cannot delete - spots occupied
+
+  /spot/{spot_id}:
+    get:
+      tags:
+        - Spots
+      summary: Get spot details
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: spot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Spot details
+        '404':
+          description: Spot not found
+
+    post:
+      tags:
+        - Spots
+      summary: Book a parking spot
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: spot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicle_number:
+                  type: string
+      responses:
+        '200':
+          description: Spot booked successfully
+        '400':
+          description: Spot unavailable
+
+  /reservation:
+    get:
+      tags:
+        - Reservations
+      summary: Get user reservations
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+          description: Filter for active reservations only
+        - name: payment_status
+          in: query
+          schema:
+            type: boolean
+          description: Filter by payment status (Admin only)
+      responses:
+        '200':
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+
+    post:
+      tags:
+        - Reservations
+      summary: Complete reservation and process payment
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reservation_id
+                - payment_id
+              properties:
+                reservation_id:
+                  type: integer
+                order_id:
+                  type: string
+                payment_id:
+                  type: string
+                signature:
+                  type: string
+                total_cost:
+                  type: number
+                amount:
+                  type: number
+      responses:
+        '200':
+          description: Payment successful, spot released
+        '400':
+          description: Payment verification failed
+
+  /reservation/{reservation_id}:
+    put:
+      tags:
+        - Reservations
+      summary: Mark spot as occupied
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: reservation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Spot occupied successfully
+        '400':
+          description: Spot already occupied
+        '404':
+          description: Reservation not found
+
+  /payment:
+    get:
+      tags:
+        - Payments
+      summary: Get payment details for reservation
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: reservation_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    type: object
+                  reservation_data:
+                    type: object
+        '400':
+          description: Reservation ID required
+
+  /stats:
+    get:
+      tags:
+        - Statistics
+      summary: Get dashboard statistics
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Statistics data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UserStats'
+                  - $ref: '#/components/schemas/AdminStats'
+
+  /notification:
+    get:
+      tags:
+        - Notifications
+      summary: Get user notifications
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+    post:
+      tags:
+        - Notifications
+      summary: Create notification (Admin only)
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - title
+                - body
+              properties:
+                user_id:
+                  type: integer
+                title:
+                  type: string
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Notification created
+        '403':
+          description: Forbidden - Admin access required
+
+  /notification/{notification_id}:
+    delete:
+      tags:
+        - Notifications
+      summary: Delete notification
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification deleted
+        '404':
+          description: Notification not found
+
+  /export:
+    get:
+      tags:
+        - Export
+      summary: Export reservation data as CSV (Admin only)
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: CSV export initiated, email sent
+        '403':
+          description: Forbidden - Admin access required
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token_cookie
+
+  schemas:
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        address:
+          type: string
+        pincode:
+          type: string
+
+    Lot:
+      type: object
+      properties:
+        lot_id:
+          type: integer
+        prime_location:
+          type: string
+        price_per_hour:
+          type: number
+        address:
+          type: string
+        pincode:
+          type: string
+        no_of_spots:
+          type: integer
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spot'
+
+    Spot:
+      type: object
+      properties:
+        spot_id:
+          type: integer
+        lot_id:
+          type: integer
+        status:
+          type: boolean
+          description: true = available, false = occupied
+
+    Reservation:
+      type: object
+      properties:
+        reservation_id:
+          type: integer
+        user_id:
+          type: integer
+        spot_id:
+          type: integer
+        parking_timestamp:
+          type: string
+          format: date-time
+        leaving_timestamp:
+          type: string
+          format: date-time
+        parking_cost:
+          type: number
+        vehicle_number:
+          type: string
+        payment_status:
+          type: boolean
+
+    Notification:
+      type: object
+      properties:
+        notification_id:
+          type: integer
+        user_id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    UserStats:
+      type: object
+      properties:
+        total_reservations:
+          type: integer
+        total_bookings:
+          type: integer
+        total_amount:
+          type: number
+        monthly_data:
+          type: object
+
+    AdminStats:
+      type: object
+      properties:
+        reservations_per_lot:
+          type: object
+          additionalProperties:
+            type: integer
